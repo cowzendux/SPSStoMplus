@@ -1,6 +1,6 @@
 #SPSStoMplus
 
-SPSS Python Extension macro to export SPSS data to Mplus
+SPSS Python Extension function to export SPSS data to Mplus
 
 Usage: **SPSStoMplus(name of SPSS data file to convert)**
 
