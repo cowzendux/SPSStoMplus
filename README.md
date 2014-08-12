@@ -1,6 +1,6 @@
 #SPSStoMplus
 
-SPSS Python Extension function to export SPSS data to Mplus
+SPSS Python Extension function to export SPSS data to Mplus format
 
 Creates a subdirectory off the current directory called "Mplus data" that contains a tab-delimited textfile with the data and a textfile with the code required to import the data. The data file will have the same filename as the original dataset but will have the extension .dat. The import file will have the same filename as the original data set but will have the extension .inp. Will also create a file just containing the variables in the data set so that programs built off of the original .inp file can be updated easily.
 
