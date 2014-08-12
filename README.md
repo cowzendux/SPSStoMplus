@@ -7,13 +7,14 @@ Creates a subdirectory off the current directory called "Mplus data" that contai
 ####What does the program do specifically?
 
 1. Saves the SPSS file as a tab-delimited text file
-2. Writes the Mplus input file
-3. Changes all missing values to -999
-4. Truncates all variable names to 8 characters
-5. Renames any variables that have conflicting names when truncated
-6. Recodes any string variables into numeric variables
-7. Replaces all non-alphanumeric characters in variable names with _
-8. Changes variables in date format to numeric format. It codes the dates as the number of seconds since October 14, 1582 (which is how they are stored in SPSS).
+2. Creates an Mplus input file that will read the data
+3. Creates a file containing a list of the variables in the data set
+4. Changes all missing values to -999
+5. Truncates all variable names to 8 characters
+6. Renames any variables that have conflicting names when truncated
+7. Recodes any string variables into numeric variables
+8. Replaces all non-alphanumeric characters in variable names with _
+9. Changes variables in date format to numeric format. It codes the dates as the number of seconds since October 14, 1582 (which is how they are stored in SPSS).
 
 ####Usage: *SPSStoMplus(fileloc)*
 * fileloc = name of SPSS data file to convert
