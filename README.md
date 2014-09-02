@@ -24,8 +24,7 @@ This and other SPSS Python Extension functions can be found at http://www.stat-h
 
 ##Example
 **SPSStoMplus("C:/users/jamie/workspace/Project/Data/SPSSfile.sav")**
-* Will load the file "C:/users/jamie/workspace/Project/Data/SPSSfile.sav", convert it to be consistent with Mplus guidelines, and save the data in a text file named 
-"C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.dat". 
-* It will also create a skeleton .inp file named C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.inp" that will load the data and a text file called C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.var that contains a list of the variables in the data file.
+* Will load the file "C:/users/jamie/workspace/Project/Data/SPSSfile.sav", convert it to be consistent with Mplus guidelines, and save the data in a text file named "C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.dat". 
+* It will also create a skeleton .inp file named "C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.inp" that will load the data and a text file called "C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.var" that contains a list of the variables in the data file.
 
 
