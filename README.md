@@ -1,4 +1,4 @@
-#SPSStoMplus
+# SPSStoMplus
 
 SPSS Python Extension function to export SPSS data to Mplus format
 
@@ -6,7 +6,7 @@ Creates a subdirectory off the current directory called "Mplus data" that contai
 
 This and other SPSS Python Extension functions can be found at http://www.stat-help.com/python.html
 
-##What does the program do specifically?
+## What does the program do specifically?
 
 1. Saves the SPSS file as a tab-delimited text file
 2. Creates an Mplus input file that will read the data
@@ -18,11 +18,11 @@ This and other SPSS Python Extension functions can be found at http://www.stat-h
 8. Replaces all non-alphanumeric characters in variable names with _
 9. Changes variables in date format to numeric format. It codes the dates as the number of seconds since October 14, 1582 (which is how they are stored in SPSS).
 
-##Usage
+## Usage
 **SPSStoMplus(fileloc)**
 * fileloc = name of SPSS data file to convert
 
-##Example
+## Example
 **SPSStoMplus("C:/users/jamie/workspace/Project/Data/SPSSfile.sav")**
 * Will load the file "C:/users/jamie/workspace/Project/Data/SPSSfile.sav", convert it to be consistent with Mplus guidelines, and save the data in a text file named "C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.dat". 
 * It will also create a skeleton .inp file named "C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.inp" that will load the data and a text file called "C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.var" that contains a list of the variables in the data file.
