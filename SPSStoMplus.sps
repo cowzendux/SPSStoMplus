@@ -49,6 +49,7 @@ SPSStoMplus("C:/users/jamie/workspace/Project/Data/SPSSfile.sav")
 * 2013-09-13 Added leading zeroes to renamed variable names
 * 2014-03-13 Replaces non-alphanumeric characters in variable names with _
 * 2014-08-12 Updated documentation
+* 2015-01-19 Suppressed output
 
 ******
 * What does the program do?
@@ -69,6 +70,12 @@ begin program python.
 import spss, os
 
 def SPSStoMplus(fileloc):
+
+# Redirect output
+ submitstring = """OMS /SELECT ALL EXCEPT = [WARNINGS] 
+    /DESTINATION VIEWER = NO 
+    /TAG = 'NoJunk'."""
+ spss.Submit(submitstring)
 
 # Identify the different parts of the filename
 	(filepath, filename) = os.path.split(fileloc)
@@ -299,5 +306,9 @@ Names are """
  f.write(inptext)
  f.close()
 
+# Restore output
+ submitstring = """OMSEND TAG = 'NoJunk'."""
+ spss.Submit(submitstring)
 end program python.
 set printback=on.
+
