@@ -1,3 +1,4 @@
+* Encoding: UTF-8.
 * Create Mplus code to load data set
 * Created by Jamie DeCoster
 
@@ -21,6 +22,262 @@ SPSStoMplus("C:/users/jamie/workspace/Project/Data/SPSSfile.sav")
 * the data and a variable list called 
 * C:/users/jamie/workspace/Project/Data/Mplus data/SPSSfile.var that contains 
 * a list of the variables in the data file.
+
+******
+* What does the program do?
+******
+* 1. Saves the SPSS file as a tab-delimited text file
+* 2. Creates an Mplus input file that will read the data
+* 3. Creates a file containing a list of the variables in the data set
+* 4. Changes all missing values to -999
+* 5. Truncates all variable names to 8 characters
+* 6. Renames any variables that have conflicting names when truncated
+* 7. Recodes any string variables into numeric variables
+* 8. Replaces all non-alphanumeric characters in variable names with _
+* 9. Changes variables in date format to numeric format. It codes the dates as 
+    the number of seconds since October 14, 1582 (which is how they are stored in SPSS).
+
+set printback=off.
+begin program python3.
+import spss, os
+
+def SPSStoMplus(fileloc):
+
+    # Redirect output
+    submitstring = """OMS /SELECT ALL EXCEPT = [WARNINGS] 
+    /DESTINATION VIEWER = NO 
+    /TAG = 'NoJunk'."""
+    spss.Submit(submitstring)
+
+    # Identify the different parts of the filename
+    filepath, filename = os.path.split(fileloc)
+    fname, fext = os.path.splitext(filename)
+
+    # split path into multiple lines
+    splitpoint = int(len(filepath) / 2)
+    while filepath[splitpoint - 1] == " " or filepath[splitpoint] == " ":
+        splitpoint += 1
+    filepath1 = filepath[:splitpoint]
+    filepath2 = filepath[splitpoint:]
+
+    # Open data set
+    submitstring = """GET FILE=
+    '%s' +
+    '%s' +
+    '/%s'.
+DATASET NAME $DataSet WINDOW=FRONT.""" % (filepath1, filepath2, filename)
+    print(submitstring)
+    spss.Submit(submitstring)
+
+    #########
+    # Rename variables with names > 8 characters
+    #########
+    print("""\n***********
+Renaming names > 8 characters
+***********""")
+    print(spss.GetVariableCount())
+    for t in range(spss.GetVariableCount()):
+        if len(spss.GetVariableName(t)) > 8:
+            name = spss.GetVariableName(t)[0:8]
+            for i in range(spss.GetVariableCount()):
+                compname = spss.GetVariableName(i)
+                if name.lower() == compname.lower():
+                    name = "var" + "%05d" % (t + 1)
+            submitstring = "rename variables (%s = %s)." % (spss.GetVariableName(t), name)
+            print(submitstring)
+            spss.Submit(submitstring)
+
+    ##########
+    # Replace non-alphanumeric characters with _ in the variable names
+    ##########
+    print("""\n***********
+Replacing non-alphanumeric with _
+***********""")
+    nonalphanumeric = [".", "@", "#", "$"]
+    for t in range(spss.GetVariableCount()):
+        oldname = spss.GetVariableName(t)
+        newname = ""
+        for i in range(len(oldname)):
+            if oldname[i] in nonalphanumeric:
+                newname = newname + "_"
+            else:
+                newname = newname + oldname[i]
+        for i in range(t):
+            compname = spss.GetVariableName(i)
+            if newname.lower() == compname.lower():
+                newname = "var" + str(t + 1)
+        if oldname != newname:
+            submitstring = "rename variables (%s = %s)." % (oldname, newname)
+            print(submitstring)
+            spss.Submit(submitstring)
+
+    # Obtain lists of variables in the dataset
+    varlist = []
+    numericlist = []
+    stringlist = []
+    for t in range(spss.GetVariableCount()):
+        varlist.append(spss.GetVariableName(t))
+        if spss.GetVariableType(t) == 0:
+            numericlist.append(spss.GetVariableName(t))
+        else:
+            stringlist.append(spss.GetVariableName(t))
+
+    ###########
+    # Automatically recode string variables into numeric variables
+    ###########
+    # First renaming string variables so the new numeric vars can take the 
+    # original variable names
+    print("""\n***********
+Recoding string variables into numeric variables
+***********""")
+    submitstring = "rename variables"
+    for var in stringlist:
+        submitstring = submitstring + "\n " + var + "=" + var + "_str"
+    submitstring = submitstring + "."
+    print(submitstring)
+    spss.Submit(submitstring)
+
+    # Recoding variables
+    if len(stringlist) > 0:
+        submitstring = "AUTORECODE VARIABLES="
+        for var in stringlist:
+            submitstring = submitstring + "\n " + var + "_str"
+        submitstring = submitstring + "\n /into"
+        for var in stringlist:
+            submitstring = submitstring + "\n " + var
+        submitstring = submitstring + """
+        /BLANK=MISSING
+        /PRINT."""
+        print(submitstring)
+        spss.Submit(submitstring)
+
+    # Dropping string variables
+    submitstring = "delete variables"
+    for var in stringlist:
+        submitstring = submitstring + "\n " + var + "_str"
+    submitstring = submitstring + "."
+    print(submitstring)
+    spss.Submit(submitstring)
+
+    # Set all missing values to be -999
+    print("""\n***********
+Setting missing values to be -999
+***********""")
+    submitstring = "RECODE "
+    for var in varlist:
+        submitstring = submitstring + " " + var + "\n"
+    submitstring = submitstring + """ (MISSING=-999).
+EXECUTE."""
+    print(submitstring)
+    spss.Submit(submitstring)
+
+    ########
+    # Convert date and time variables to numeric
+    ########
+    # SPSS actually stores dates as the number of seconds that have elapsed since October 14, 1582.
+    # This syntax takes variables with a date type and puts them in their natural numeric form
+
+    submitstring = """numeric ddate7663804 (f11.0).
+    alter type ddate7663804 (date11).
+    ALTER TYPE ALL (DATE = F11.0).
+    alter type ddate7663804 (adate11).
+    ALTER TYPE ALL (ADATE = F11.0).
+    alter type ddate7663804 (time11).
+    ALTER TYPE ALL (TIME = F11.0).
+
+    delete variables ddate7663804."""
+    print(submitstring)
+    spss.Submit(submitstring)
+
+    ######
+    # Reorder variables in active data set
+    ######
+    submitstring = """MATCH FILES /FILE=*
+    /keep="""
+    for var in varlist:
+        submitstring = submitstring + "\n " + var
+    submitstring = submitstring + """.
+    EXECUTE."""
+    spss.Submit(submitstring)
+
+    ############
+    # Create files 
+    ############
+
+    # Create Mplus data subdirectory if it does not exist
+    if not os.path.exists(filepath + "/Mplus data"):
+        os.mkdir(filepath + "/Mplus data")
+
+    # Save data as a tab-delimited text file
+    submitstring = """SAVE TRANSLATE OUTFILE=
+    '%s' +
+    '%s' +
+    '/Mplus data/' +
+    '%s.dat'
+    /TYPE=TAB
+    /MAP
+    /REPLACE
+    /CELLS=VALUES
+    /keep
+    """ % (filepath1, filepath2, fname)
+    for var in varlist:
+        submitstring = submitstring + "\n " + var
+    submitstring = submitstring + "."
+    print(submitstring)
+    spss.Submit(submitstring)
+
+    ########
+    # Create Mplus input file
+    ########
+    inptext = """TITLE:
+
+
+    DATA:
+    File is '%s
+    %s/Mplus data
+    /%s.dat';
+
+    VARIABLE:
+    Names are """ % (filepath1, filepath2, fname)
+
+    for var in varlist:
+        inptext = inptext + "\n" + var
+    inptext = inptext + """;
+
+    MISSING ARE ALL (-999);
+
+    ANALYSIS:
+
+
+    MODEL:
+
+
+    OUTPUT:
+    stdyx;
+    """
+
+    with open(filepath + "/Mplus data/" + fname + ".inp", 'w') as f:
+        f.write(inptext)
+
+    ###########
+    # Create text file with just the variable list
+    ###########
+
+    inptext = """VARIABLE:
+    Names are """
+
+    for var in varlist:
+        inptext = inptext + "\n" + var
+    inptext = inptext + ";"
+
+    with open(filepath + "/Mplus data/" + fname + " vars.inp", 'w') as f:
+        f.write(inptext)
+
+    # Restore output
+    submitstring = """OMSEND TAG = 'NoJunk'."""
+    spss.Submit(submitstring)
+end program python3.
+set printback=on.
 
 *********
 * Version history
@@ -50,265 +307,4 @@ SPSStoMplus("C:/users/jamie/workspace/Project/Data/SPSSfile.sav")
 * 2014-03-13 Replaces non-alphanumeric characters in variable names with _
 * 2014-08-12 Updated documentation
 * 2015-01-19 Suppressed output
-
-******
-* What does the program do?
-******
-* 1. Saves the SPSS file as a tab-delimited text file
-* 2. Creates an Mplus input file that will read the data
-* 3. Creates a file containing a list of the variables in the data set
-* 4. Changes all missing values to -999
-* 5. Truncates all variable names to 8 characters
-* 6. Renames any variables that have conflicting names when truncated
-* 7. Recodes any string variables into numeric variables
-* 8. Replaces all non-alphanumeric characters in variable names with _
-* 9. Changes variables in date format to numeric format. It codes the dates as 
-    the number of seconds since October 14, 1582 (which is how they are stored in SPSS).
-
-set printback=off.
-begin program python.
-import spss, os
-
-def SPSStoMplus(fileloc):
-
-# Redirect output
- submitstring = """OMS /SELECT ALL EXCEPT = [WARNINGS] 
-    /DESTINATION VIEWER = NO 
-    /TAG = 'NoJunk'."""
- spss.Submit(submitstring)
-
-# Identify the different parts of the filename
-	(filepath, filename) = os.path.split(fileloc)
-	(fname, fext) = os.path.splitext(filename)
-
-# split path into multiple lines
- splitpoint = int(len(filepath)/2)
- while (filepath[splitpoint-1] == " " or filepath[splitpoint] == " "):
-  splitpoint += 1
-	filepath1 = filepath[:splitpoint]
-	filepath2 = filepath[splitpoint:]
-
-# Open data set
-	submitstring = """GET FILE=
-	'%s' +
-	'%s' +
-	'/%s'.
-DATASET NAME $DataSet WINDOW=FRONT.""" %(filepath1, filepath2, filename)
-	print submitstring
-	spss.Submit(submitstring)
-
-
-#########
-# Rename variables with names > 8 characters
-#########
-	print """\n***********
-Renaming names > 8 characters
-***********"""
- print spss.GetVariableCount()
-	for t in range(spss.GetVariableCount()):
-		if (len(spss.GetVariableName(t)) > 8):
-			name = spss.GetVariableName(t)[0:8]
-			for i in range(spss.GetVariableCount()):
-				compname = spss.GetVariableName(i)
-				if (name.lower() == compname.lower()):
-					name = "var" + "%05d" %(t+1)
-			submitstring = "rename variables (%s = %s)." %(spss.GetVariableName(t), name)
-			print submitstring
-			spss.Submit(submitstring)
-
-##########
-# Replace non-alphanumeric characters with _ in the variable names
-##########
-	print """\n***********
-Replacing non-alphanumeric with _
-***********"""
- nonalphanumeric = [".", "@", "#", "$"]
-	for t in range(spss.GetVariableCount()):
-		oldname = spss.GetVariableName(t)
-		newname = ""
-		for i in range(len(oldname)):
-			if(oldname[i] in nonalphanumeric):
-				newname = newname +"_"
-			else:
-				newname = newname+oldname[i]
-		for i in range(t):
-			compname = spss.GetVariableName(i)
-			if (newname.lower() == compname.lower()):
-				newname = "var" + str(t+1)
-		if (oldname != newname):
-			submitstring = "rename variables (%s = %s)." %(oldname, newname)
-			print submitstring
-			spss.Submit(submitstring)
-
-# Obtain lists of variables in the dataset
-	varlist = []
-	numericlist = []
-	stringlist = []
-	for t in range(spss.GetVariableCount()):
-		varlist.append(spss.GetVariableName(t))
-		if (spss.GetVariableType(t) == 0):
-			numericlist.append(spss.GetVariableName(t))
-		else:
-			stringlist.append(spss.GetVariableName(t))
-
-###########
-# Automatically recode string variables into numeric variables
-###########
-# First renaming string variables so the new numeric vars can take the 
-# original variable names
-	print """\n***********
-Recoding string variables into numeric variables
-***********"""
-	submitstring = "rename variables"
-	for var in stringlist:
-		submitstring = submitstring + "\n " + var + "=" + var + "_str"
-	submitstring = submitstring + "."
-	print submitstring
-	spss.Submit(submitstring)
-
-# Recoding variables
- if (len(stringlist) > 0):
- 	submitstring = "AUTORECODE VARIABLES="
-	 for var in stringlist:
-		 submitstring = submitstring + "\n " + var + "_str"
- 	submitstring = submitstring + "\n /into"
-	 for var in stringlist:
-		 submitstring = submitstring + "\n " + var
- 	submitstring = submitstring + """
-   /BLANK=MISSING
-   /PRINT."""
- 	print submitstring
-	 spss.Submit(submitstring)
-	
-# Dropping string variables
-	submitstring = "delete variables"
-	for var in stringlist:
-		submitstring = submitstring + "\n " + var + "_str"
-	submitstring = submitstring + "."
-	print submitstring
-	spss.Submit(submitstring)
-
-# Set all missing values to be -999
-	print """\n***********
-Setting missing values to be -999
-***********"""
-	submitstring = "RECODE "
-	for var in varlist:
-		submitstring = submitstring + " " + var + "\n"
-	submitstring = submitstring + """ (MISSING=-999).
-EXECUTE."""
-	print submitstring
-	spss.Submit(submitstring)
-
-########
-# Convert date and time variables to numeric
-########
-# SPSS actually stores dates as the number of seconds that have elapsed since October 14, 1582.
-# This syntax takes variables with a date type and puts them in their natural numeric form
-
- submitstring = """numeric ddate7663804 (f11.0).
-alter type ddate7663804 (date11).
-ALTER TYPE ALL (DATE = F11.0).
-alter type ddate7663804 (adate11).
-ALTER TYPE ALL (ADATE = F11.0).
-alter type ddate7663804 (time11).
-ALTER TYPE ALL (TIME = F11.0).
-
-delete variables ddate7663804."""
- print submitstring
- spss.Submit(submitstring)
-
-######
-# Reorder variables in active data set
-######
- submitstring = """MATCH FILES /FILE=*
-  /keep="""
- for var in varlist:
-		submitstring = submitstring + "\n " + var
- submitstring = submitstring + """.
-EXECUTE."""
- spss.Submit(submitstring)
-
-############
-# Create files 
-############
-
-
-# Create Mplus data subdirectory if it does not exist
-	if not os.path.exists(filepath + "/Mplus data"):
-		os.mkdir(filepath + "/Mplus data")
-
-# Save data as a tab-delimited text file
-	submitstring = """SAVE TRANSLATE OUTFILE=
-	'%s' +
-	'%s' +
-	'/Mplus data/' +
-	'%s.dat'
-  /TYPE=TAB
-  /MAP
-  /REPLACE
-  /CELLS=VALUES
-	/keep
-""" %(filepath1, filepath2, fname)
-	for var in varlist:
-		submitstring = submitstring + "\n " + var
-	submitstring = submitstring + "."
-	print submitstring
-	spss.Submit(submitstring)
-
-
-########
-# Create Mplus input file
-########
-	inptext = """TITLE:
-
-
-DATA:
-File is '%s
-%s/Mplus data
-/%s.dat';
-
-VARIABLE:
-Names are """ %(filepath1, filepath2, fname)
-
-	for var in varlist:
-		inptext = inptext + "\n" + var
-	inptext = inptext + """;
-
-MISSING ARE ALL (-999);
-
-ANALYSIS:
-
-
-MODEL:
-
-
-OUTPUT:
-stdyx;
-"""
-
-	f = open(filepath + "/Mplus data/" + fname + ".inp", 'w')
-	f.write(inptext)
-	f.close()
-
-###########
-# Create text file with just the variable list
-###########
-
- inptext = """VARIABLE:
-Names are """
-
- for var in varlist:
-	 inptext = inptext + "\n" + var
-	inptext = inptext + ";"
-
- f = open(filepath + "/Mplus data/" + fname + " vars.inp", 'w')
- f.write(inptext)
- f.close()
-
-# Restore output
- submitstring = """OMSEND TAG = 'NoJunk'."""
- spss.Submit(submitstring)
-end program python.
-set printback=on.
-
+* 2024-06-09 Updated to Python3
